@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Автоматичний аналіз виконання норм харчування в закладі освіти: % виконання, недодано та передано (білки, жири, вуглеводи, ккал), експорт у PDF і Word.">
+<meta name="description" content="Автоматичний аналіз виконання норм харчування в закладі освіти за групами класів: % виконання, недодано та передано (білки, жири, вуглеводи, ккал), друк, PDF і Word.">
 <title>Аналіз норм харчування</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@600&display=swap">
@@ -34,6 +34,21 @@ h1{font-family:var(--f-display);font-weight:600;font-size:clamp(20px,3.2vw,30px)
 .field input,.field select{font:inherit;font-size:15px;color:var(--ink);background:var(--paper);border:1px solid var(--line-strong);border-radius:6px;padding:7px 10px;min-width:0}
 .field input{width:110px}
 .field.wide input{width:140px}
+.groupsCard{margin-top:16px;display:grid;gap:10px}
+.gtitle{display:grid;gap:2px}.gtitle span{color:var(--muted);font-size:13px}
+.grow{display:flex;flex-wrap:wrap;gap:10px}
+.gchip{display:flex;flex-direction:column;gap:6px;background:var(--paper);border:1px solid var(--line-strong);border-radius:8px;padding:10px 14px;min-width:170px;cursor:pointer}
+.gchip.active{background:var(--accent-soft);border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.gchip.off{background:var(--bg);color:var(--muted);cursor:default;border-style:dashed}
+.gchip b{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.gchip.active b{color:var(--accent)}
+.gchip span{font-size:16px;font-weight:600;display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}
+.gchip small{font-size:11px;max-width:200px}
+.gchip select,.agef input{font:inherit;font-size:15px;color:var(--ink);background:var(--paper);border:1px solid var(--line-strong);border-radius:6px;padding:3px 6px}
+.agef{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}.agef input{width:110px}
+.gon{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer}
+.gwarn{margin:0;color:var(--warn);font-weight:600;font-size:13px}
+.note{margin:0;background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:10px 14px;font-weight:500}
 .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
 .stat{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:grid;gap:4px}
 .stat .lbl{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
@@ -89,26 +104,34 @@ details .tablewrap{border:none;margin-top:10px}
     <div class="params">
       <label class="field">Місяць<select id="month"></select></label>
       <label class="field">Рік<input id="year" inputmode="numeric"></label>
-      <label class="field wide">Вікова група<input id="age"></label>
       <label class="field">Днів харчування<input id="days" inputmode="numeric"></label>
       <label class="field">Днів у тижні<input id="dpw" inputmode="numeric"></label>
+      <label class="field">Вид харчування<select id="meal"><option value="snid">Сніданок</option><option value="obid">Обід</option></select></label>
+    </div>
+    <div class="groupsCard">
+      <div class="gtitle"><b>Групи класів і вікові категорії</b><span>Натисніть на групу, щоб заповнити її таблицю. Для кожної групи оберіть, з якого і по який клас вона йде, та вікову категорію: норми підставляться самі.</span></div>
+      <div class="grow" id="groups"></div>
+      <p class="gwarn" id="gwarn" hidden></p>
     </div>
   </header>
 
   <section class="summary" id="summary"></section>
 
   <div class="toolbar">
+    <label class="field scope">Що зберегти<select id="scope"><option value="cur">Поточна група</option><option value="all">Усі групи</option></select></label>
     <button class="primary" id="pdf">Завантажити PDF</button>
     <button class="primary" id="word">Завантажити Word</button>
     <button class="primary" id="print">Друк</button>
     <button id="copy">Копіювати таблицю</button>
+    <button id="fillNorms">Підставити норми за постановою</button>
     <button id="add">Додати продукт</button>
     <button id="addOther">Додати в «Інші продукти»</button>
     <button class="danger" id="reset">Відновити зразок</button>
     <span class="msg" id="msg" role="status"></span>
   </div>
-  <p class="foot" id="printHint">Друк і файли PDF та Word формуються на аркуші А4 альбомної орієнтації.</p>
+  <p class="foot" id="printHint">Друк і файли PDF та Word формуються на аркуші А4 альбомної орієнтації. «Що зберегти» → «Усі групи» додає кожну групу на окрему сторінку.</p>
 
+  <p class="note" id="copiedNote" hidden>Норми цієї групи вже підставлено за постановою №305. Фактичні дані поки дорівнюють нормі — впишіть свої за меню-вимогами.</p>
   <div class="tablewrap"><table id="t"></table></div>
   <p class="foot" id="foot"></p>
 
@@ -120,6 +143,7 @@ details .tablewrap{border:none;margin-top:10px}
   <div class="how">
     <p><b>Як рахується.</b> Норма на дитину в день = нормова кількість порцій на тиждень × нормована маса порції ÷ днів у тижні. Фактично видано в день — так само за фактичними даними. % виконання = фактично ÷ норма × 100.</p>
     <p>Якщо видано менше норми, різниця в грамах переводиться в білки, жири, вуглеводи й ккал і потрапляє в «Недодано». Якщо більше — у «Передано». Для групи «Молоко та молочні продукти» % рахується за кількістю порцій (сума порцій підпунктів ÷ нормова кількість порцій).</p>
+    <p><b>Норми.</b> Постанова КМУ №305 від 24.03.2021, додаток 9 (одноразове харчування), зі змінами постанови №1280 від 08.10.2025: для 11–18 років овочі 120 г; на обід злакові 5 порцій на тиждень, картопля 2. Енергетична цінність і БЖВ — окремо для сніданку й обіду кожної вікової категорії. Яйце: 1 шт., у розрахунку прийнято 40 г.</p>
     <p>Склад продуктів на 100 г заповнено орієнтовно для готових порцій. Звірте його зі своїми технологічними картками. Усі зміни зберігаються в цьому браузері.</p>
   </div>
   <p class="author">Авторка: Галина Гайдай</p>
@@ -134,9 +158,7 @@ const MONTHS=["січень","лютий","березень","квітень","�
 const MONTHS_GEN=["січня","лютого","березня","квітня","травня","червня","липня","серпня","вересня","жовтня","листопада","грудня"];
 let uid=1;
 const it=(name,kind,nw,fw,nm,fm,b,z,v,k)=>({id:uid++,name,kind,nw,fw,nm,fm,b,z,v,k});
-function sample(){uid=1;return{month:9,year:2026,age:"6–11 років",days:16,dpw:5,
- norms:{b:[18,21],z:[17,21],v:[73,88],k:[525,630]},
- rows:[
+function sampleRows(){return[
   it("Овочі","item",5,5,100,100,1.2,0.1,5,26),
   it("Фрукти та ягоди","item",5,5,100,100,0.5,0.3,10,47),
   it("Соки фруктові, овочеві","item",1,1,200,200,0.5,0.1,10,45),
@@ -159,12 +181,48 @@ function sample(){uid=1;return{month:9,year:2026,age:"6–11 років",days:16
   it("Цукор","item",5,5,7.5,7.5,0,0,99.8,399),
   it("Какао","item",1,1,6,6,24.3,15,10.2,289),
   it("Чай","item",1,1,0.5,0.5,20,5.1,6.9,140)
- ]};}
-
+ ]}
+/* Норми: постанова КМУ №305 від 24.03.2021, додаток 9 (одноразове харчування, 5 днів), зі змінами постанови №1280 від 08.10.2025 */
+const CATS=["6–11 років","11–14 років","14–18 років"];
+const MEALS={snid:"Сніданок",obid:"Обід"};
+const MASS={"Овочі":[100,120,120],"Фрукти та ягоди":[100,100,100],"Соки фруктові, овочеві":[200,200,200],"Фрукти та ягоди сушені, насіння, горіхи":[25,25,25],
+ "Злакові та бобові":[120,150,150],"Картопля":[120,150,150],"Хліб":[30,50,50],"Риба":[60,90,120],"Птиця":[70,100,120],"Яйця":[40,40,40],
+ "молоко":[200,200,200],"кефір":[125,125,125],"йогурт":[125,125,125],"сир твердий":[15,15,15],"сир кисломолочний":[125,125,125],
+ "Масло вершкове":[3,4,4.5],"Олія":[5.5,6.5,7.5],"Сіль":[1,1.5,1.5],"Цукор":[7.5,7.5,7.5],"Какао":[6,6,6],"Чай":[0.5,0.5,0.5]};
+const PORT={"Овочі":5,"Фрукти та ягоди":5,"Соки фруктові, овочеві":1,"Фрукти та ягоди сушені, насіння, горіхи":2,"Злакові та бобові":4,"Картопля":1,"Хліб":3,"Риба":1,"Птиця":2,"Яйця":1,
+ "Молоко та молочні продукти":5,"молоко":1,"кефір":1,"йогурт":1,"сир твердий":1,"сир кисломолочний":1,"Масло вершкове":5,"Олія":5,"Сіль":5,"Цукор":5,"Какао":1,"Чай":1};
+const PORT_OBID={"Злакові та бобові":5,"Картопля":2}; /* зміни №1280 для обідів */
+const BJV={snid:[{b:[18,21],z:[17,21],v:[73,88],k:[525,630]},{b:[21,25],z:[21,25],v:[81,98],k:[600,720]},{b:[23,27],z:[23,27],v:[93,112],k:[675,810]}],
+           obid:[{b:[21,25],z:[21,24],v:[88,103],k:[630,735]},{b:[25,29],z:[25,29],v:[98,114],k:[720,840]},{b:[27,32],z:[27,32],v:[112,131],k:[810,945]}]};
+function applyNorms(g,withFact){
+  const c=+g.cat||0,meal=S&&S.meal||"snid";
+  g.rows.forEach(r=>{const k=r.key||r.name;
+    if(k in PORT){r.nw=(meal==="obid"&&PORT_OBID[k])||PORT[k]}
+    if(k in MASS){r.nm=MASS[k][c]}
+    if(withFact&&r.kind!=="group"){r.fw=r.nw;r.fm=r.nm}});
+  g.norms=JSON.parse(JSON.stringify(BJV[meal][c]));
+}
+const newGroup=(i,from,to,on)=>{const g={cat:i,from,to,on,rows:sampleRows(),copied:true};g.rows.forEach(r=>r.key=r.name);applyNorms(g,true);return g};
+function sample(){uid=1;S={month:9,year:2026,days:16,dpw:5,meal:"snid",cur:0,groups:[]};S.groups=[newGroup(0,1,4,true),newGroup(1,5,9,true),newGroup(2,10,11,true)];return S}
 let S;
 try{S=JSON.parse(localStorage.getItem("normsState")||"null")}catch(e){S=null}
-if(!S||!S.rows)S=sample();
-uid=Math.max(0,...S.rows.map(r=>r.id))+1;
+if(S&&S.rows&&!S.groups){const old=S;S=null;const fresh=sample();
+  S={month:old.month,year:old.year,days:old.days,dpw:old.dpw,meal:"snid",cur:0,groups:[{cat:0,from:1,to:4,on:true,norms:old.norms||BJV.snid[0],rows:old.rows},fresh.groups[1],fresh.groups[2]]}}
+if(!S||!S.groups)S=sample();
+if(!S.meal)S.meal="snid";
+/* перехід із попередньої версії (межі груп) */
+if(S.bounds){const[b1,b2]=S.bounds.map(Number);const rg=[[1,b1],[b1+1,b2],[b2+1,11]];
+  S.groups.forEach((g,i)=>{g.from=Math.min(11,rg[i][0]);g.to=Math.max(g.from,rg[i][1]);g.on=i<2||b2<11;if(g.cat===undefined)g.cat=i});delete S.bounds}
+S.groups.forEach((g,i)=>{if(g.cat===undefined)g.cat=i;if(g.on===undefined)g.on=true;g.rows.forEach(r=>{if(!r.key&&!r.custom)r.key=r.name})});
+if(!S.groups[S.cur]||!S.groups[S.cur].on)S.cur=0;
+let D=S.groups[S.cur]||S.groups[0];
+function syncUid(){uid=Math.max(0,...S.groups.flatMap(g=>g.rows.map(r=>r.id)))+1}
+syncUid();
+/* групи класів — як у «Обліку харчування»: група 1 = 1–b1, група 2 = b1+1–b2, група 3 = b2+1–11 */
+const activeGroups=()=>S.groups.map((g,i)=>g.on?i:-1).filter(i=>i>=0);
+function classRange(i){const g=S.groups[i],a=+g.from,z=+g.to;return a===z?`${a} клас`:`${a}–${z} класи`}
+const ageLabel=g=>CATS[+g.cat||0];
+function withGroup(i,fn){const prev=D;D=S.groups[i];try{return fn()}finally{D=prev}}
 function save(){try{localStorage.setItem("normsState",JSON.stringify(S))}catch(e){}}
 
 const num=v=>{if(v===""||v==null)return NaN;const n=parseFloat(String(v).replace(",","."));return isFinite(n)?n:NaN};
@@ -186,8 +244,8 @@ function calcItem(r){
   return{norm,fact,pct,up:pct<100?100-pct:0,op:pct>100?pct-100:0,u,o,fn};
 }
 function calcGroup(g){
-  const subs=S.rows.filter(r=>r.kind==="sub").map(calcItem);
-  const fw=S.rows.filter(r=>r.kind==="sub").reduce((a,r)=>a+z0(r.fw),0);
+  const subs=D.rows.filter(r=>r.kind==="sub").map(calcItem);
+  const fw=D.rows.filter(r=>r.kind==="sub").reduce((a,r)=>a+z0(r.fw),0);
   const nw=z0(g.nw);
   const pct=nw>0?fw/nw*100:NaN;
   const u={},o={};NUT.forEach(n=>{u[n]=subs.reduce((a,c)=>a+c.u[n],0);o[n]=subs.reduce((a,c)=>a+c.o[n],0)});
@@ -197,7 +255,7 @@ const cls=p=>isNaN(p)?"":Math.abs(p-100)<0.05?"ok":p<100?"low":"high";
 
 function totals(){
   const t={f:{},u:{},o:{},dev:0};NUT.forEach(n=>{t.f[n]=0;t.u[n]=0;t.o[n]=0});
-  S.rows.forEach(r=>{
+  D.rows.forEach(r=>{
     if(r.kind==="group"){const c=calcGroup(r);if(!isNaN(c.pct)&&cls(c.pct)!=="ok")t.dev++;return}
     const c=calcItem(r);
     NUT.forEach(n=>{t.f[n]+=c.fn[n];t.u[n]+=c.u[n];t.o[n]+=c.o[n]});
@@ -207,7 +265,7 @@ function totals(){
 }
 const NLABEL={b:"Білки",z:"Жири",v:"Вуглеводи",k:"Енергетична цінність"};
 const NUNIT={b:"г",z:"г",v:"г",k:"ккал"};
-function status(n,val){const[a,b]=S.norms[n].map(z0);if(val<a-1e-9)return["low","нижче норми"];if(val>b+1e-9)return["high","вище норми"];return["ok","у межах норми"]}
+function status(n,val){const[a,b]=D.norms[n].map(z0);if(val<a-1e-9)return["low","нижче норми"];if(val>b+1e-9)return["high","вище норми"];return["ok","у межах норми"]}
 
 /* ---------- main table ---------- */
 const IN=(r,f,cl="")=>`<input id="r${r.id}_${f}" data-id="${r.id}" data-f="${f}" value="${esc(r[f])}" inputmode="decimal" class="${cl}" aria-label="${esc(r.name)}">`;
@@ -218,17 +276,18 @@ function render(){
    <th rowspan="2">Фактично видано в день, г</th><th rowspan="2">% виконання</th>
    <th colspan="5">Недодано на 1 дитину</th><th colspan="5">Передано на 1 дитину</th></tr>
    <tr><th>%</th><th>Б</th><th>Ж</th><th>В</th><th>ккал</th><th>%</th><th>Б</th><th>Ж</th><th>В</th><th>ккал</th></tr></thead><tbody>`;
-  const others=S.rows.filter(r=>r.kind==="other");
-  S.rows.filter(r=>r.kind!=="other").forEach(r=>h+=rowHtml(r));
+  const others=D.rows.filter(r=>r.kind==="other");
+  D.rows.filter(r=>r.kind!=="other").forEach(r=>h+=rowHtml(r));
   h+=`<tr class="section"><td colspan="18">Інші продукти, що були використані для приготування страв відповідно до технологічної документації (борошно тощо)</td></tr>`;
   others.forEach(r=>h+=rowHtml(r));
   h+=`<tr class="total"><td class="name">Разом недодано / передано</td><td colspan="7"></td><td></td>${NUT.map(n=>`<td class="u" id="tu_${n}"></td>`).join("")}<td></td>${NUT.map(n=>`<td class="o" id="to_${n}"></td>`).join("")}</tr>`;
   NUT.forEach(n=>{h+=`<tr class="nut"><td class="name">${NLABEL[n]}, ${NUNIT[n]}</td>
-    <td colspan="4">норма: <input id="nmin_${n}" data-norm="${n}" data-i="0" value="${esc(S.norms[n][0])}" inputmode="decimal"> – <input id="nmax_${n}" data-norm="${n}" data-i="1" value="${esc(S.norms[n][1])}" inputmode="decimal"></td>
+    <td colspan="4">норма: <input id="nmin_${n}" data-norm="${n}" data-i="0" value="${esc(D.norms[n][0])}" inputmode="decimal"> – <input id="nmax_${n}" data-norm="${n}" data-i="1" value="${esc(D.norms[n][1])}" inputmode="decimal"></td>
     <td colspan="2" class="calc" id="tf_${n}"></td><td class="pct" id="ts_${n}"></td><td colspan="10"></td></tr>`});
   h+="</tbody>";
   document.getElementById("t").innerHTML=h;
   renderComp();recalc();
+  document.getElementById("copiedNote").hidden=!D.copied;
 }
 function rowHtml(r){
   const outs=`<td class="calc" id="c${r.id}_norm"></td><td class="calc" id="c${r.id}_fact"></td><td class="pct" id="c${r.id}_pct"></td>
@@ -242,7 +301,7 @@ function rowHtml(r){
 const set=(id,v,c)=>{const e=document.getElementById(id);if(!e)return;e.textContent=v;if(c!==undefined){e.classList.remove("ok","low","high");if(c)e.classList.add(c)}};
 const blank=v=>v>1e-9?fmt(v):"";
 function recalc(){
-  S.rows.forEach(r=>{
+  D.rows.forEach(r=>{
     const c=r.kind==="group"?calcGroup(r):calcItem(r);
     if(r.kind==="group")set(`c${r.id}_fw`,fmt(c.fw));
     set(`c${r.id}_norm`,fmt(c.norm));set(`c${r.id}_fact`,fmt(c.fact));
@@ -255,11 +314,11 @@ function recalc(){
     set(`tf_${n}`,"факт: "+fmt(t.f[n],1));const[s,l]=status(n,t.f[n]);set(`ts_${n}`,l,s)});
   // summary
   document.getElementById("summary").innerHTML=NUT.map(n=>{const[s,l]=status(n,t.f[n]);
-    return`<div class="stat"><span class="lbl">${NLABEL[n]}</span><span class="val">${fmt(t.f[n],1)} ${NUNIT[n]}</span><span class="rng">норма ${fmt(z0(S.norms[n][0]))}–${fmt(z0(S.norms[n][1]))} ${NUNIT[n]}</span><span class="pill ${s}">${l}</span></div>`}).join("")+
+    return`<div class="stat"><span class="lbl">${NLABEL[n]}</span><span class="val">${fmt(t.f[n],1)} ${NUNIT[n]}</span><span class="rng">норма ${fmt(z0(D.norms[n][0]))}–${fmt(z0(D.norms[n][1]))} ${NUNIT[n]}</span><span class="pill ${s}">${l}</span></div>`}).join("")+
     `<div class="stat"><span class="lbl">Продукти з відхиленням</span><span class="val">${t.dev}</span><span class="rng">виконання не дорівнює 100%</span><span class="pill ${t.dev?"low":"ok"}">${t.dev?"перевірте рядки":"усі норми виконано"}</span></div>`;
   const m=+S.month;
   document.getElementById("ttl").textContent=`Аналіз виконання норм харчування за ${MONTHS[m]} ${S.year} р.`;
-  document.getElementById("ttl2").textContent=`для вікової групи ${S.age}`;
+  document.getElementById("ttl2").textContent=`${MEALS[S.meal]} · для вікової групи ${ageLabel(D)} (${classRange(S.cur)})`;
   document.getElementById("foot").textContent=`Протягом ${MONTHS_GEN[m]} учні харчувалися ${S.days} ${dn(z0(S.days))}.`;
   save();
 }
@@ -268,28 +327,61 @@ const dn=n=>{n=Math.abs(n)%100;const k=n%10;if(n>10&&n<20)return"днів";if(k=
 /* ---------- composition ---------- */
 function renderComp(){
   let h=`<thead><tr><th>Продукт</th><th>Білки, г</th><th>Жири, г</th><th>Вуглеводи, г</th><th>ккал</th></tr></thead><tbody>`;
-  S.rows.filter(r=>r.kind!=="group").forEach(r=>{h+=`<tr><td class="name ${r.kind==="sub"?"sub":""}" id="cn${r.id}">${esc(r.name)}</td>${NUT.map(n=>`<td>${IN(r,n)}</td>`).join("")}</tr>`});
+  D.rows.filter(r=>r.kind!=="group").forEach(r=>{h+=`<tr><td class="name ${r.kind==="sub"?"sub":""}" id="cn${r.id}">${esc(r.name)}</td>${NUT.map(n=>`<td>${IN(r,n)}</td>`).join("")}</tr>`});
   document.getElementById("ct").innerHTML=h+"</tbody>";
 }
+
+/* ---------- групи ---------- */
+function renderGroups(){
+  const opt=(sel)=>{let o="";for(let i=1;i<=11;i++)o+=`<option value="${i}" ${i===+sel?"selected":""}>${i}</option>`;return o};
+  const catOpt=c=>CATS.map((t,k)=>`<option value="${k}" ${k===+c?"selected":""}>${t}</option>`).join("");
+  let h="";
+  S.groups.forEach((g,i)=>{
+    const act=i===S.cur&&g.on;
+    const tog=i===0?"":`<label class="gon"><input type="checkbox" id="gon${i}" data-gon="${i}" ${g.on?"checked":""}> використовувати</label>`;
+    if(!g.on){h+=`<div class="gchip off"><b>Група ${i+1}</b><span>не використовується</span>${tog}</div>`;return}
+    h+=`<div class="gchip${act?" active":""}" data-g="${i}" role="button" tabindex="0" aria-pressed="${act}">
+      <b>Група ${i+1}${act?" · відкрита":""}</b>
+      <span>з <select id="gf${i}" data-gf="${i}" aria-label="Група ${i+1}: з якого класу">${opt(g.from)}</select> по <select id="gt${i}" data-gt="${i}" aria-label="Група ${i+1}: по який клас">${opt(g.to)}</select> клас</span>
+      <label class="agef">Вік<select id="gc${i}" data-gc="${i}">${catOpt(g.cat)}</select></label>${tog}</div>`;
+  });
+  const act=activeGroups().map(i=>S.groups[i]);let warn="";
+  for(let a=0;a<act.length;a++)for(let b=a+1;b<act.length;b++)if(+act[a].from<=+act[b].to&&+act[b].from<=+act[a].to)warn="Увага: класи в групах перетинаються. Перевірте межі.";
+  document.getElementById("groups").innerHTML=h;
+  document.getElementById("gwarn").textContent=warn;document.getElementById("gwarn").hidden=!warn;
+}
+function openGroup(i){if(i===S.cur||!S.groups[i].on)return;S.cur=i;D=S.groups[i];renderGroups();render();msg(`Відкрито групу ${i+1}: ${classRange(i)}`)}
+const gEl=document.getElementById("groups");
+gEl.addEventListener("click",e=>{if(e.target.closest("select,input,label"))return;const c=e.target.closest("[data-g]");if(c)openGroup(+c.dataset.g)});
+gEl.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.matches("[data-g]")){e.preventDefault();openGroup(+e.target.dataset.g)}});
+gEl.addEventListener("change",e=>{const el=e.target,d=el.dataset;
+  if(d.gf!==undefined){const g=S.groups[+d.gf];g.from=+el.value;if(+g.to<g.from)g.to=g.from}
+  else if(d.gt!==undefined){const g=S.groups[+d.gt];g.to=+el.value;if(+g.from>g.to)g.from=g.to}
+  else if(d.gc!==undefined){const i=+d.gc,g=S.groups[i];g.cat=+el.value;applyNorms(g,false);if(i===S.cur)render();msg(`Групі ${i+1} підставлено норми для ${CATS[g.cat]}`)}
+  else if(d.gon!==undefined){const i=+d.gon;S.groups[i].on=el.checked;if(!el.checked&&S.cur===i){S.cur=0;D=S.groups[0];render()}}
+  else return;
+  renderGroups();recalc()});
+document.getElementById("fillNorms").onclick=()=>{applyNorms(D,false);render();msg(`Норми групи ${S.cur+1} оновлено за постановою №305 (зі змінами №1280)`)};
+document.getElementById("meal").addEventListener("change",e=>{S.meal=e.target.value;S.groups.forEach(g=>applyNorms(g,false));render();msg(`${MEALS[S.meal]}: норми порцій і БЖВ оновлено для всіх груп`)});
 
 /* ---------- events ---------- */
 document.addEventListener("input",e=>{
   const el=e.target;
-  if(el.dataset.norm){S.norms[el.dataset.norm][+el.dataset.i]=el.value;recalc();return}
-  if(el.dataset.id){const r=S.rows.find(x=>x.id==el.dataset.id);if(!r)return;r[el.dataset.f]=el.value;
+  if(el.dataset.norm){D.norms[el.dataset.norm][+el.dataset.i]=el.value;D.copied=false;document.getElementById("copiedNote").hidden=true;recalc();return}
+  if(el.dataset.id){const r=D.rows.find(x=>x.id==el.dataset.id);if(!r)return;r[el.dataset.f]=el.value;if(D.copied){D.copied=false;document.getElementById("copiedNote").hidden=true}
     if(el.dataset.f==="name"){const c=document.getElementById("cn"+r.id);if(c)c.textContent=el.value}
     // keep twin inputs (main/composition) in sync
     document.querySelectorAll(`input[data-id="${r.id}"][data-f="${el.dataset.f}"]`).forEach(x=>{if(x!==el)x.value=el.value});
     recalc()}
 });
-document.addEventListener("click",e=>{const d=e.target.closest("[data-del]");if(!d)return;S.rows=S.rows.filter(r=>r.id!=d.dataset.del);render()});
+document.addEventListener("click",e=>{const d=e.target.closest("[data-del]");if(!d)return;D.rows=D.rows.filter(r=>r.id!=d.dataset.del);render()});
 const ms=document.getElementById("month");ms.innerHTML=MONTHS.map((m,i)=>`<option value="${i}">${m}</option>`).join("");
-const P={month:ms,year:document.getElementById("year"),age:document.getElementById("age"),days:document.getElementById("days"),dpw:document.getElementById("dpw")};
+const P={month:ms,year:document.getElementById("year"),days:document.getElementById("days"),dpw:document.getElementById("dpw")};
 function fillParams(){Object.entries(P).forEach(([k,el])=>el.value=S[k])}
 Object.entries(P).forEach(([k,el])=>el.addEventListener("input",()=>{S[k]=el.value;recalc()}));
 function addRow(kind){
   const r=it("Новий продукт",kind,"","","","","","","","");r.custom=true;
-  if(kind==="item"){const i=S.rows.findIndex(x=>x.kind==="other");i<0?S.rows.push(r):S.rows.splice(i,0,r)}else S.rows.push(r);
+  if(kind==="item"){const i=D.rows.findIndex(x=>x.kind==="other");i<0?D.rows.push(r):D.rows.splice(i,0,r)}else D.rows.push(r);
   render();const el=document.getElementById(`r${r.id}_name`);if(el){el.focus();el.select()}
 }
 document.getElementById("add").onclick=()=>addRow("item");
@@ -297,7 +389,7 @@ document.getElementById("addOther").onclick=()=>addRow("other");
 const msg=t=>{const m=document.getElementById("msg");m.textContent=t;clearTimeout(msg.t);msg.t=setTimeout(()=>m.textContent="",4000)};
 const rb=document.getElementById("reset");let armed=false;
 rb.onclick=()=>{if(!armed){armed=true;rb.textContent="Натисніть ще раз — дані буде замінено";setTimeout(()=>{armed=false;rb.textContent="Відновити зразок"},4000);return}
-  armed=false;rb.textContent="Відновити зразок";S=sample();fillParams();render();msg("Зразок відновлено")};
+  armed=false;rb.textContent="Відновити зразок";S=sample();D=S.groups[0];syncUid();fillParams();document.getElementById("meal").value=S.meal;renderGroups();render();msg("Зразок відновлено")};
 
 /* ---------- export model (одне джерело для Word, PDF і копіювання) ---------- */
 const HEAD1=["Назва продукту","Нормова к-ть порцій на тиждень","Фактична к-ть порцій на тиждень","Нормована маса порцій, г","Фактична маса порцій, г","Норма харчового продукту на одну дитину в день, г","Фактично видано в день, г","% виконання"];
@@ -308,17 +400,24 @@ function model(){
     const cells=[g?fmt(z0(r.nw)):fmt(num(r.nw)),g?fmt(c.fw):fmt(num(r.fw)),g?"":fmt(num(r.nm)),g?"":fmt(num(r.fm)),fmt(c.norm),fmt(c.fact),isNaN(c.pct)?"":fmt(c.pct,1),
       c.up>1e-9?fmt(c.up,1):"",...NUT.map(n=>blank(c.u[n])),c.op>1e-9?fmt(c.op,1):"",...NUT.map(n=>blank(c.o[n]))].map(v=>v==="—"?"":v);
     rows.push({type:"row",name:r.name,indent:r.kind==="sub",bold:g,cells})};
-  S.rows.filter(r=>r.kind!=="other").forEach(line);
+  D.rows.filter(r=>r.kind!=="other").forEach(line);
   rows.push({type:"section",name:"Інші продукти, що були використані для приготування страв відповідно до технологічної документації (мука і т.д.)"});
-  S.rows.filter(r=>r.kind==="other").forEach(line);
+  D.rows.filter(r=>r.kind==="other").forEach(line);
   const t=totals();
   rows.push({type:"row",name:"Разом недодано / передано",bold:true,cells:["","","","","","","","",...NUT.map(n=>fmt(t.u[n])),"",...NUT.map(n=>fmt(t.o[n]))]});
-  NUT.forEach(n=>rows.push({type:"nut",name:NLABEL[n],range:`${fmt(z0(S.norms[n][0]))}–${fmt(z0(S.norms[n][1]))}`,fact:fmt(t.f[n],1),status:status(n,t.f[n])[1]}));
-  return{t1:`Аналіз виконання норм харчування за ${MONTHS[m]} ${S.year} р.`,t2:`для вікової групи ${S.age}`,
+  NUT.forEach(n=>rows.push({type:"nut",name:NLABEL[n],range:`${fmt(z0(D.norms[n][0]))}–${fmt(z0(D.norms[n][1]))}`,fact:fmt(t.f[n],1),status:status(n,t.f[n])[1]}));
+  return{t1:`Аналіз виконання норм харчування за ${MONTHS[m]} ${S.year} р.`,t2:`для вікової групи ${ageLabel(D)} (${classRange(S.cur)})`,
     foot:`Протягом ${MONTHS_GEN[m]} учні харчувалися ${S.days} ${dn(z0(S.days))}.`,rows,
-    file:`Аналіз норм харчування ${MONTHS[m]} ${S.year}`};
+    file:`Аналіз норм харчування ${MONTHS[m]} ${S.year} (${classRange(S.cur)})`};
 }
+const scopeAll=()=>document.getElementById("scope").value==="all";
+const groupsToExport=()=>scopeAll()?activeGroups():[S.cur];
+const fileBase=()=>{const m=+S.month;return scopeAll()?`Аналіз норм харчування ${MONTHS[m]} ${S.year} (усі групи)`:model().file};
 function exportHtml(){
+  const parts=groupsToExport().map(i=>withGroup(i,()=>{const cur=S.cur;S.cur=i;try{return exportOne()}finally{S.cur=cur}}));
+  return{html:parts.map(p=>p.html).join('<div style="page-break-before:always;break-before:page"></div>'),tsv:parts.map(p=>p.tsv).join("\n\n"),parts};
+}
+function exportOne(){
   const M=model();
   const B="border:1px solid #000;padding:2px 4px;";
   const td=(v,a="",al="center")=>`<td style="${B}text-align:${al}" ${a}>${v}</td>`;
@@ -352,18 +451,21 @@ async function makePdf(){
   busy("pdf",true,"Готую PDF…");
   const box=document.createElement("div");
   box.style.cssText="position:fixed;left:-12000px;top:0;width:1500px;background:#fff;color:#000;padding:24px";
-  box.innerHTML=exportHtml().html;box.querySelector("table").style.width="100%";
   document.body.appendChild(box);
   try{
-    const canvas=await html2canvas(box,{scale:2,backgroundColor:"#ffffff"});
     const{jsPDF}=window.jspdf;const pdf=new jsPDF({orientation:"landscape",unit:"mm",format:"a4"});
-    const pw=297-20,ph=210-20,pxPerMm=canvas.width/pw,pagePx=Math.floor(ph*pxPerMm);
-    for(let y=0,first=true;y<canvas.height;y+=pagePx,first=false){
-      const h=Math.min(pagePx,canvas.height-y);const c=document.createElement("canvas");c.width=canvas.width;c.height=h;
-      c.getContext("2d").drawImage(canvas,0,y,canvas.width,h,0,0,canvas.width,h);
-      if(!first)pdf.addPage();pdf.addImage(c.toDataURL("image/jpeg",0.95),"JPEG",10,10,pw,h/pxPerMm);
+    const pw=297-20,ph=210-20;let first=true;
+    for(const part of exportHtml().parts){
+      box.innerHTML=part.html;box.querySelector("table").style.width="100%";
+      const canvas=await html2canvas(box,{scale:2,backgroundColor:"#ffffff"});
+      const pxPerMm=canvas.width/pw,pagePx=Math.floor(ph*pxPerMm);
+      for(let y=0;y<canvas.height;y+=pagePx){
+        const h=Math.min(pagePx,canvas.height-y);const c=document.createElement("canvas");c.width=canvas.width;c.height=h;
+        c.getContext("2d").drawImage(canvas,0,y,canvas.width,h,0,0,canvas.width,h);
+        if(!first)pdf.addPage();first=false;pdf.addImage(c.toDataURL("image/jpeg",0.95),"JPEG",10,10,pw,h/pxPerMm);
+      }
     }
-    await offer(model().file+".pdf",pdf.output("blob"),"PDF збережено");
+    await offer(fileBase()+".pdf",pdf.output("blob"),"PDF збережено");
   }catch(e){msg("Не вдалося створити PDF")}
   finally{box.remove();busy("pdf",false,"Завантажити PDF")}
 }
@@ -373,13 +475,16 @@ async function makeDocx(){
   busy("word",true,"Готую Word…");
   try{
     const{Document,Packer,Paragraph,TextRun,Table,TableRow,TableCell,WidthType,AlignmentType,PageOrientation,VerticalAlign,BorderStyle}=docx;
-    const M=model();const F="Times New Roman",SZ=18;
+    const F="Times New Roman",SZ=18;
     const bd={style:BorderStyle.SINGLE,size:4,color:"000000"};const borders={top:bd,bottom:bd,left:bd,right:bd};
     const NAMEW=3000,COLW=745;
     const cell=(text,o={})=>new TableCell({borders,verticalAlign:VerticalAlign.CENTER,rowSpan:o.rs,columnSpan:o.cs,
       width:{size:o.w||(o.cs?o.cs*COLW:COLW),type:WidthType.DXA},margins:{top:20,bottom:20,left:50,right:50},
       children:[new Paragraph({alignment:o.left?AlignmentType.LEFT:AlignmentType.CENTER,indent:o.indent?{left:280}:undefined,
         children:[new TextRun({text:String(text??""),font:F,size:SZ,bold:!!o.b})]})]});
+    const sections=[];
+    for(const gi of groupsToExport()){
+    const M=withGroup(gi,()=>{const cur=S.cur;S.cur=gi;try{return model()}finally{S.cur=cur}});
     const rows=[
       new TableRow({tableHeader:true,children:[...HEAD1.map((h,i)=>cell(h,{rs:2,b:true,w:i?COLW:NAMEW})),cell("Недодано на 1 дитину",{cs:5,b:true}),cell("Передано на 1 дитину",{cs:5,b:true})]}),
       new TableRow({tableHeader:true,children:HEAD2.map(h=>cell(h,{b:true}))})
@@ -390,12 +495,14 @@ async function makeDocx(){
       else rows.push(new TableRow({children:[cell(r.name,{left:true,b:r.bold,indent:r.indent,w:NAMEW}),...r.cells.map(v=>cell(v))]}));
     });
     const P=(t,o={})=>new Paragraph({alignment:o.c?AlignmentType.CENTER:AlignmentType.LEFT,spacing:{after:o.after||0,before:o.before||0},children:[new TextRun({text:t,font:F,size:o.sz||24,bold:!!o.b})]});
-    const doc=new Document({sections:[{properties:{page:{size:{orientation:PageOrientation.LANDSCAPE},margin:{top:567,bottom:567,left:567,right:567}}},
+    sections.push({properties:{page:{size:{orientation:PageOrientation.LANDSCAPE},margin:{top:567,bottom:567,left:567,right:567}}},
       children:[P(M.t1,{c:true,b:true,sz:28}),P(M.t2,{c:true,b:true,sz:28,after:160}),
         new Table({rows,width:{size:NAMEW+17*COLW,type:WidthType.DXA},columnWidths:[NAMEW,...Array(17).fill(COLW)]}),
-        P(M.foot,{before:160})]}]});
+        P(M.foot,{before:160})]});
+    }
+    const doc=new Document({sections});
     const blob=await Packer.toBlob(doc);
-    await offer(M.file+".docx",blob,"Файл Word збережено");
+    await offer(fileBase()+".docx",blob,"Файл Word збережено");
   }catch(e){msg("Не вдалося створити файл Word")}
   finally{busy("word",false,"Завантажити Word")}
 }
@@ -414,7 +521,7 @@ document.getElementById("pdf").onclick=makePdf;
 document.getElementById("word").onclick=makeDocx;
 document.getElementById("print").onclick=()=>{document.getElementById("printArea").innerHTML=exportHtml().html;window.print()};
 
-fillParams();render();
+fillParams();document.getElementById("meal").value=S.meal;renderGroups();render();
 </script>
 
 </body>
